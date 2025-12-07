@@ -1,27 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Login - Business UI</title>
-<link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business API — Login</title>
+<style>
+  /* Reset some default styles */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  body {
+    background: #f4f7f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .login-container {
+    background: #fff;
+    padding: 40px 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-container h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 24px;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #555;
+  }
+
+  input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    transition: all 0.2s ease-in-out;
+  }
+
+  input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+    outline: none;
+  }
+
+  .btn-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 16px;
+    transition: background 0.2s ease-in-out;
+  }
+
+  #btnLogin {
+    background: #007bff;
+    color: #fff;
+  }
+
+  #btnLogin:hover {
+    background: #0056b3;
+  }
+
+  #btnClear {
+    background: #6c757d;
+    color: #fff;
+  }
+
+  #btnClear:hover {
+    background: #5a6268;
+  }
+
+  .error {
+    color: #d9534f;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .info {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #666;
+    text-align: center;
+  }
+
+  @media(max-width: 480px){
+    .login-container {
+      padding: 30px 20px;
+    }
+  }
+</style>
 </head>
 <body>
-<div class="container" style="max-width:380px">
-  <div class="header"><h1>Business API — Login</h1></div>
 
-  <div>
-    <label>Username</label>
-    <input id="username" placeholder="username" />
-    <label style="margin-top:8px">Password</label>
-    <input id="password" type="password" placeholder="password" />
-    <div style="margin-top:12px">
-      <button id="btnLogin">Login</button>
-      <button id="btnClear" style="background:#6c757d;margin-left:8px">Clear</button>
-    </div>
-    <div id="msg" class="error"></div>
+<div class="login-container">
+  <h1>Business API — Login</h1>
+
+  <label for="username">Username</label>
+  <input id="username" placeholder="Enter your username" />
+
+  <label for="password">Password</label>
+  <input id="password" type="password" placeholder="Enter your password" />
+
+  <div class="btn-group">
+    <button id="btnLogin">Login</button>
+    <button id="btnClear">Clear</button>
   </div>
 
-  <p class="small" style="margin-top:12px">If you don't have a user, create one via your API (Swagger) or ask me for a curl example.</p>
+  <div id="msg" class="error"></div>
+
+  <p class="info">If you don't have a user, create one via your API (Swagger) or ask for a curl example.</p>
 </div>
 
 <script src="app.js"></script>
@@ -30,9 +141,9 @@ const API = `${API_BASE}/Auth/login`;
 
 document.getElementById("btnLogin").addEventListener("click", doLogin);
 document.getElementById("btnClear").addEventListener("click", () => {
-  document.getElementById("username").value="";
-  document.getElementById("password").value="";
-  document.getElementById("msg").innerText="";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+  document.getElementById("msg").innerText = "";
 });
 
 async function doLogin(){
@@ -51,9 +162,7 @@ async function doLogin(){
       return;
     }
 
-    // expected body contains token: { token: "..." } or similar
     const body = r.data;
-    // try common shapes
     const token = body?.token ?? body?.data?.token ?? body?.accessToken ?? body?.access_token;
     if(!token){
       document.getElementById("msg").innerText = "Login succeeded but token not found in response.";
@@ -63,11 +172,12 @@ async function doLogin(){
 
     localStorage.setItem("token", token);
     window.location.href = "dashboard.html";
-  }catch(e){
+  } catch(e){
     document.getElementById("msg").innerText = "Network error";
     console.error(e);
   }
 }
 </script>
+
 </body>
 </html>
