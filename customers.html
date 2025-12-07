@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>Customers</title><link rel="stylesheet" href="styles.css" /></head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Customers</h1>
+    <div><a href="dashboard.html">Back</a> <button onclick="logout()">Logout</button></div>
+  </div>
+
+  <div>
+    <h3>Add Customer</h3>
+    <div class="form-row">
+      <input id="c_name" placeholder="Name" />
+      <input id="c_phone" placeholder="Phone" />
+      <input id="c_address" placeholder="Address" />
+      <button id="btnAdd">Add</button>
+    </div>
+    <div id="c_msg" class="error"></div>
+
+    <h3 style="margin-top:18px">All Customers</h3>
+    <table id="tblCustomers"><thead><tr><th>Id</th><th>Name</th><th>Phone</th><th>Address</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+if(!requireAuthRedirect()) {}
+const API_CUSTOMERS = `${API_BASE}/Customers`;
+
+document.getElementById("btnAdd").addEventListener("click", addCustomer);
+
+async function loadCustomers(){
+  const r = await fetchJson(API_CUSTOMERS, { method:"GET", headers: authHeader() });
+  if(!r.ok){ document.getElementById("c_msg").innerText = "Failed to load customers"; return; }
+  const tbody = document.querySelector("#tblCustomers tbody"); tbody.innerHTML="";
+  (r.data||[]).forEach(c=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${c.id}</td><td>${c.name}</td><td>${c.phone}</td><td>${c.address}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function addCustomer(){
+  const name = document.getElementById("c_name").value.trim();
+  const phone = document.getElementById("c_phone").value.trim();
+  const address = document.getElementById("c_address").value.trim();
+  if(!name || !phone){ document.getElementById("c_msg").innerText = "Name & phone required"; return; }
+  document.getElementById("c_msg").innerText = "Adding...";
+  const payload = { name, phone, address };
+  const r = await fetchJson(API_CUSTOMERS, { method:"POST", headers: authHeader(), body: JSON.stringify(payload) });
+  if(!r.ok){ document.getElementById("c_msg").innerText = (r.data?.message || "Add failed"); return; }
+  document.getElementById("c_msg").innerText = "Added";
+  document.getElementById("c_name").value=""; document.getElementById("c_phone").value=""; document.getElementById("c_address").value="";
+  await loadCustomers();
+}
+
+function logout(){ logoutAndRedirect(); }
+
+loadCustomers();
+</script>
+</body>
+</html>

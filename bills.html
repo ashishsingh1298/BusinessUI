@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><title>Bills</title><link rel="stylesheet" href="styles.css" /></head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Bills</h1>
+    <div><a href="dashboard.html">Back</a> <button onclick="logout()">Logout</button></div>
+  </div>
+
+  <div>
+    <h3>Add Bill</h3>
+    <div class="form-row">
+      <select id="bill_customer"></select>
+      <input id="bill_amount" placeholder="Amount" type="number" />
+      <input id="bill_notes" placeholder="Notes" />
+      <input id="bill_status" placeholder="Status (pending/paid/partial)" />
+      <button id="btnAddBill">Add</button>
+    </div>
+    <div id="bill_msg" class="error"></div>
+
+    <h3 style="margin-top:18px">All Bills</h3>
+    <table id="tblBills"><thead><tr><th>Id</th><th>CustomerId</th><th>Amount</th><th>Status</th><th>Notes</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+if(!requireAuthRedirect()) {}
+const API_CUSTOMERS = `${API_BASE}/Customers`;
+const API_BILLS = `${API_BASE}/Bills`;
+
+document.getElementById("btnAddBill").addEventListener("click", addBill);
+
+async function loadCustomersIntoSelect(){
+  const r = await fetchJson(API_CUSTOMERS, { method:"GET", headers: authHeader() });
+  const sel = document.getElementById("bill_customer"); sel.innerHTML="<option value=''>Select customer</option>";
+  (r.data||[]).forEach(c=>{
+    const opt = document.createElement("option"); opt.value = c.id; opt.text = `${c.id} - ${c.name}`; sel.appendChild(opt);
+  });
+}
+
+async function loadBills(){
+  const r = await fetchJson(API_BILLS, { method:"GET", headers: authHeader() });
+  const tbody = document.querySelector("#tblBills tbody"); tbody.innerHTML="";
+  (r.data||[]).forEach(b=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${b.id}</td><td>${b.customerId}</td><td>${b.billAmount}</td><td>${b.status}</td><td>${b.notes||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function addBill(){
+  const customerId = parseInt(document.getElementById("bill_customer").value||"0");
+  const amount = parseFloat(document.getElementById("bill_amount").value||"0");
+  const notes = document.getElementById("bill_notes").value.trim();
+  const status = document.getElementById("bill_status").value.trim() || "pending";
+  if(!customerId || !amount){ document.getElementById("bill_msg").innerText="Customer and amount required"; return; }
+  document.getElementById("bill_msg").innerText = "Adding...";
+  const payload = { customerId, billAmount: amount, notes, status };
+  const r = await fetchJson(API_BILLS, { method:"POST", headers: authHeader(), body: JSON.stringify(payload) });
+  if(!r.ok){ document.getElementById("bill_msg").innerText = (r.data?.message || "Add failed"); return; }
+  document.getElementById("bill_msg").innerText = "Added";
+  await loadBills();
+}
+
+function logout(){ logoutAndRedirect(); }
+
+loadCustomersIntoSelect();
+loadBills();
+</script>
+</body>
+</html>

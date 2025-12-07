@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Login - Business UI</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="container" style="max-width:380px">
+  <div class="header"><h1>Business API — Login</h1></div>
+
+  <div>
+    <label>Username</label>
+    <input id="username" placeholder="username" />
+    <label style="margin-top:8px">Password</label>
+    <input id="password" type="password" placeholder="password" />
+    <div style="margin-top:12px">
+      <button id="btnLogin">Login</button>
+      <button id="btnClear" style="background:#6c757d;margin-left:8px">Clear</button>
+    </div>
+    <div id="msg" class="error"></div>
+  </div>
+
+  <p class="small" style="margin-top:12px">If you don't have a user, create one via your API (Swagger) or ask me for a curl example.</p>
+</div>
+
+<script src="app.js"></script>
+<script>
+const API = `${API_BASE}/Auth/login`;
+
+document.getElementById("btnLogin").addEventListener("click", doLogin);
+document.getElementById("btnClear").addEventListener("click", () => {
+  document.getElementById("username").value="";
+  document.getElementById("password").value="";
+  document.getElementById("msg").innerText="";
+});
+
+async function doLogin(){
+  const u = document.getElementById("username").value.trim();
+  const p = document.getElementById("password").value.trim();
+  if(!u || !p){ document.getElementById("msg").innerText="Enter username & password"; return; }
+
+  const payload = { username: u, password: p };
+  document.getElementById("msg").innerText = "Logging in...";
+
+  try{
+    const r = await fetchJson(API, { method:"POST", headers: authHeader(), body: JSON.stringify(payload) });
+    if(!r.ok){
+      const err = (r.data && (r.data.message||r.data.error)) || `Login failed (${r.status})`;
+      document.getElementById("msg").innerText = err;
+      return;
+    }
+
+    // expected body contains token: { token: "..." } or similar
+    const body = r.data;
+    // try common shapes
+    const token = body?.token ?? body?.data?.token ?? body?.accessToken ?? body?.access_token;
+    if(!token){
+      document.getElementById("msg").innerText = "Login succeeded but token not found in response.";
+      console.log("login response:", body);
+      return;
+    }
+
+    localStorage.setItem("token", token);
+    window.location.href = "dashboard.html";
+  }catch(e){
+    document.getElementById("msg").innerText = "Network error";
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>
