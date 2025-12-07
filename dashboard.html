@@ -1,35 +1,339 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Dashboard - Business UI</title>
-<link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif;}
+  body{background:#f4f4f9;color:#333;}
+  .container{max-width:1200px;margin:0 auto;padding:10px;}
+  .header{display:flex;justify-content:space-between;align-items:center;padding:10px 0;background:#2c3e50;color:#fff;border-radius:8px;}
+  .header h1{font-size:1.5rem;}
+  .header button{background:#e74c3c;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
+  .header button:hover{background:#c0392b;}
+  nav{display:flex;gap:5px;margin:15px 0;}
+  nav button{flex:1;padding:10px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;transition:0.3s;}
+  nav button:hover{background:#2980b9;}
+  nav button.active{background:#1abc9c;}
+  .cards{display:flex;gap:10px;margin:15px 0;flex-wrap:wrap;}
+  .card{flex:1;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);text-align:center;min-width:150px;}
+  .card h2{font-size:2rem;color:#1abc9c;}
+  .card p{font-size:0.9rem;color:#555;margin-top:5px;}
+  .tab-content{background:#fff;padding:15px;border-radius:0 8px 8px 8px;min-height:400px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  table{width:100%;border-collapse:collapse;margin-top:10px;}
+  th,td{padding:8px;text-align:left;border-bottom:1px solid #ddd;font-size:0.9rem;}
+  th{background:#f1f1f1;}
+  input, select, button{padding:6px;border-radius:4px;border:1px solid #ccc;}
+  button{background:#1abc9c;color:#fff;border:none;cursor:pointer;}
+  button:hover{background:#16a085;}
+  @media(max-width:768px){
+    .header h1{font-size:1.2rem;}
+    .cards{flex-direction:column;}
+  }
+</style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>Business Dashboard</h1>
-    <div>
-      <button onclick="logout()">Logout</button>
-    </div>
+    <button onclick="logout()">Logout</button>
   </div>
 
   <nav>
-    <a href="customers.html">Customers</a>
-    <a href="bills.html">Bills</a>
-    <a href="payments.html">Payments</a>
+    <button class="tab-link active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-link" data-tab="customers">Customers</button>
+    <button class="tab-link" data-tab="bills">Bills</button>
+    <button class="tab-link" data-tab="payments">Payments</button>
   </nav>
 
-  <div style="margin-top:18px">
-    <p>Welcome — use the links above to manage data.</p>
-    <p class="small">Your API base: <strong>https://businessapi-njcw.onrender.com</strong></p>
+  <div class="cards">
+    <div class="card">
+      <h2 id="custCount">0</h2>
+      <p>Customers</p>
+    </div>
+    <div class="card">
+      <h2 id="billCount">0</h2>
+      <p>Bills</p>
+    </div>
+    <div class="card">
+      <h2 id="payCount">0</h2>
+      <p>Payments</p>
+    </div>
+  </div>
+
+  <canvas id="chart-summary" style="width:100%; max-width:600px; height:250px;"></canvas>
+  <h3 style="margin-top:20px;">Records Trend</h3>
+  <canvas id="chart-trend" style="width:100%; max-width:400px; height:200px; margin-top:10px;"></canvas>
+
+  <div class="tab-content" id="tab-content">
+    <div id="dashboard-content">
+      <p>Click tabs above to view Customers, Bills, or Payments.</p>
+    </div>
   </div>
 </div>
 
 <script src="app.js"></script>
 <script>
-if(!requireAuthRedirect()) { /* redirected */ }
+if(!requireAuthRedirect()){}
+
+const API_CUSTOMERS = `${API_BASE}/Customers`;
+const API_BILLS = `${API_BASE}/Bills`;
+const API_PAYMENTS = `${API_BASE}/Payments`;
+
 function logout(){ logoutAndRedirect(); }
+
+async function loadDashboard(){
+  try{
+    const [custRes,billRes,payRes]=await Promise.all([
+      fetchJson(API_CUSTOMERS,{headers:authHeader()}),
+      fetchJson(API_BILLS,{headers:authHeader()}),
+      fetchJson(API_PAYMENTS,{headers:authHeader()})
+    ]);
+    const customers=custRes.data||[];
+    const bills=billRes.data||[];
+    const payments=payRes.data||[];
+    document.getElementById("custCount").innerText=customers.length;
+    document.getElementById("billCount").innerText=bills.length;
+    document.getElementById("payCount").innerText=payments.length;
+
+    const ctxBar=document.getElementById('chart-summary').getContext('2d');
+    new Chart(ctxBar,{
+      type:'bar',
+      data:{
+        labels:['Customers','Bills','Payments'],
+        datasets:[{label:'Count',data:[customers.length,bills.length,payments.length],backgroundColor:['#1abc9c','#3498db','#e67e22']}]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}}}
+    });
+
+    const maxLen=Math.max(customers.length,bills.length,payments.length);
+    const labels=Array.from({length:maxLen},(_,i)=>i+1);
+    const custData=Array.from({length:maxLen},(_,i)=>customers[i]?.id||0);
+    const billData=Array.from({length:maxLen},(_,i)=>bills[i]?.id||0);
+    const payData=Array.from({length:maxLen},(_,i)=>payments[i]?.id||0);
+
+    const ctxLine=document.getElementById('chart-trend').getContext('2d');
+    new Chart(ctxLine,{
+      type:'line',
+      data:{
+        labels:labels,
+        datasets:[
+          {label:'Customers',data:custData,borderColor:'#1abc9c',fill:false,tension:0.3},
+          {label:'Bills',data:billData,borderColor:'#3498db',fill:false,tension:0.3},
+          {label:'Payments',data:payData,borderColor:'#e67e22',fill:false,tension:0.3}
+        ]
+      },
+      options:{responsive:true,plugins:{legend:{position:'top'}},scales:{x:{title:{display:true,text:'Record sequence'}},y:{beginAtZero:true,title:{display:true,text:'ID / Count'}}},elements:{point:{radius:3}}}
+    });
+
+  }catch(err){console.error(err);}
+}
+
+const tabs=document.querySelectorAll('.tab-link');
+const tabContent=document.getElementById('tab-content');
+
+tabs.forEach(tab=>{
+  tab.addEventListener('click',async ()=>{
+    tabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    tabContent.innerHTML='';
+    switch(tab.dataset.tab){
+      case 'dashboard':
+        tabContent.innerHTML=`<div id="dashboard-content"><p>Click tabs above to view Customers, Bills, or Payments.</p></div>`;
+        loadDashboard();
+        break;
+      case 'customers':
+        await loadCustomersTab();
+        break;
+      case 'bills':
+        await loadBillsTab();
+        break;
+      case 'payments':
+        await loadPaymentsTab();
+        break;
+    }
+  });
+});
+
+// ----- Dynamic tab content -----
+async function loadCustomersTab(){
+  const res=await fetchJson(API_CUSTOMERS,{headers:authHeader()});
+  const customers=res.data||[];
+  let html=`<h2>Add Customer</h2>
+    <div class="form-row" style="display:flex;gap:10px;margin-bottom:10px;">
+      <input id="c_name" placeholder="Name" style="flex:1;padding:6px;">
+      <input id="c_phone" placeholder="Phone" style="flex:1;padding:6px;">
+      <input id="c_address" placeholder="Address" style="flex:2;padding:6px;">
+      <button id="btnAddCustomer">Add</button>
+    </div>
+    <div id="c_msg" class="error" style="margin-bottom:10px;"></div>
+    <h3>All Customers</h3>
+    <table id="tblCustomers">
+      <thead><tr><th>Id</th><th>Name</th><th>Phone</th><th>Address</th></tr></thead>
+      <tbody>${customers.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.phone}</td><td>${c.address}</td></tr>`).join('')}</tbody>
+    </table>`;
+  tabContent.innerHTML=html;
+  document.getElementById('btnAddCustomer').addEventListener('click',async()=>{
+    const name=document.getElementById('c_name').value.trim();
+    const phone=document.getElementById('c_phone').value.trim();
+    const address=document.getElementById('c_address').value.trim();
+    if(!name||!phone){document.getElementById('c_msg').innerText="Name & phone required"; return;}
+    const payload={name,phone,address};
+    const r=await fetchJson(API_CUSTOMERS,{method:'POST',headers:authHeader(),body:JSON.stringify(payload)});
+    if(!r.ok){document.getElementById('c_msg').innerText="Add failed"; return;}
+    document.getElementById('c_msg').innerText="Added";
+    loadCustomersTab();
+  });
+}
+
+// ----- Bills Tab -----
+async function loadBillsTab(){
+  const [custRes,billRes]=await Promise.all([
+    fetchJson(API_CUSTOMERS,{headers:authHeader()}),
+    fetchJson(API_BILLS,{headers:authHeader()})
+  ]);
+  const customers=custRes.data||[];
+  const bills=billRes.data||[];
+  let html=`<h2>Add Bill</h2>
+    <div class="form-row" style="display:flex;gap:10px;margin-bottom:10px;">
+      <select id="bill_customer" style="flex:1;padding:6px;">
+        ${customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+      </select>
+      <input id="bill_amount" placeholder="Amount" type="number" style="flex:1;padding:6px;">
+      <input id="bill_notes" placeholder="Notes" style="flex:1;padding:6px;">
+      <input id="bill_status" placeholder="Status" style="flex:1;padding:6px;">
+      <button id="btnAddBill">Add</button>
+    </div>
+    <div id="bill_msg" class="error" style="margin-bottom:10px;"></div>
+    <h3>All Bills</h3>
+    <table id="tblBills">
+      <thead><tr><th>Id</th><th>Customer</th><th>Amount</th><th>Status</th><th>Notes</th></tr></thead>
+      <tbody>${bills.map(b=>`<tr><td>${b.id}</td><td>${b.customerId}</td><td>${b.billAmount}</td><td>${b.status}</td><td>${b.notes||''}</td></tr>`).join('')}</tbody>
+    </table>`;
+  tabContent.innerHTML=html;
+  document.getElementById('btnAddBill').addEventListener('click',async()=>{
+    const customerId=parseInt(document.getElementById('bill_customer').value);
+    const amount=parseFloat(document.getElementById('bill_amount').value);
+    const notes=document.getElementById('bill_notes').value;
+    const status=document.getElementById('bill_status').value||'pending';
+    if(!customerId||!amount){document.getElementById('bill_msg').innerText="Customer & amount required"; return;}
+    const payload={customerId,billAmount:amount,notes,status};
+    const r=await fetchJson(API_BILLS,{method:'POST',headers:authHeader(),body:JSON.stringify(payload)});
+    if(!r.ok){document.getElementById('bill_msg').innerText="Add failed"; return;}
+    document.getElementById('bill_msg').innerText="Added";
+    loadBillsTab();
+  });
+}
+
+// ----- Payments Tab -----
+async function loadPaymentsTab(){
+  const [custRes,billRes,payRes]=await Promise.all([
+    fetchJson(API_CUSTOMERS,{headers:authHeader()}),
+    fetchJson(API_BILLS,{headers:authHeader()}),
+    fetchJson(API_PAYMENTS,{headers:authHeader()})
+  ]);
+  const customers=custRes.data||[];
+  const bills=billRes.data||[];
+  const payments=payRes.data||[];
+
+  let html=`<h2>Record Payment</h2>
+    <div class="form-row" style="display:flex;gap:10px;margin-bottom:10px;">
+      <select id="pay_customer" style="flex:1;padding:6px;">${customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+      <select id="pay_bill" style="flex:1;padding:6px;"></select>
+      <input id="pay_amount" placeholder="Amount" type="number" style="flex:1;padding:6px;">
+      <select id="pay_mode" style="flex:1;padding:6px;">
+        <option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Cheque">Cheque</option>
+      </select>
+      <input id="pay_cheque" placeholder="Cheque No" style="flex:1;padding:6px;">
+      <button id="btnAddPayment">Save</button>
+    </div>
+    <div id="pay_msg" class="error" style="margin-bottom:10px;"></div>
+
+    <h3>All Payments</h3>
+    <table id="tblPayments">
+      <thead>
+        <tr><th>Id</th><th>Cust</th><th>Bill</th><th>Amount</th><th>Mode</th><th>Cleared</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        ${payments.map(p=>`
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.customerId}</td>
+          <td>${p.billId}</td>
+          <td>${p.amount}</td>
+          <td>${p.mode}</td>
+          <td>${p.cleared?'Yes':'No'}</td>
+          <td>
+            <button class="toggle-clear"
+              data-id="${p.id}"
+              data-newstate="${!p.cleared}">
+              Mark ${p.cleared?'Uncleared':'Cleared'}
+            </button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  tabContent.innerHTML=html;
+
+  const payCustomer=document.getElementById('pay_customer');
+  const payBill=document.getElementById('pay_bill');
+
+  payCustomer.addEventListener('change',()=>{
+    const cid=parseInt(payCustomer.value);
+    const filtered=bills.filter(b=>b.customerId===cid);
+    payBill.innerHTML=filtered.map(b=>`<option value="${b.id}">${b.billAmount} (${b.status})</option>`).join('');
+  });
+
+  document.getElementById('btnAddPayment').addEventListener('click',async()=>{
+    const customerId=parseInt(payCustomer.value);
+    const billId=parseInt(payBill.value);
+    const amount=parseFloat(document.getElementById('pay_amount').value);
+    const mode=document.getElementById('pay_mode').value;
+    const cheque=document.getElementById('pay_cheque').value.trim();
+
+    if(!customerId||!billId||!amount){
+      document.getElementById('pay_msg').innerText="Customer, bill, amount required";
+      return;
+    }
+
+    const payload={customerId,billId,amount,mode,chequeNumber:cheque,cleared:false};
+    const r=await fetchJson(API_PAYMENTS,{method:'POST',headers:authHeader(),body:JSON.stringify(payload)});
+    if(!r.ok){document.getElementById('pay_msg').innerText="Save failed"; return;}
+
+    document.getElementById('pay_msg').innerText="Saved";
+    
+    await loadPaymentsTab();
+    document.getElementById('tblPayments').scrollIntoView({behavior:"smooth"});
+  });
+
+
+  // Toggle clear button
+  document.querySelectorAll(".toggle-clear").forEach(btn=>{
+    btn.addEventListener("click", async()=>{
+      const paymentId=parseInt(btn.dataset.id);
+      const newState = btn.dataset.newstate==="true";
+
+      const r = await fetch(`${API_PAYMENTS}/update-status`,{
+        method:"PUT",
+        headers:{...authHeader(), "Content-Type":"application/json"},
+        body:JSON.stringify({paymentId, cleared:newState})
+      });
+
+      if(!r.ok){ alert("Update failed"); return; }
+
+      await loadPaymentsTab();
+      document.getElementById('tblPayments').scrollIntoView({behavior:"smooth"});
+    });
+  });
+}
+
+
+// Initial dashboard load
+loadDashboard();
 </script>
 </body>
 </html>
